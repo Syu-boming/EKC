@@ -14,7 +14,7 @@ var LS = 'ekc.v1';
 var KEYS = ['A', 'B', 'C', 'D'];
 
 /* ---------- 全域狀態 ---------- */
-var G = { data: null, explain: null, notes: null, notesLoaded: false, sess: null, tick: null };
+var G = { data: null, explain: null, notes: null, notesLoaded: false, errata: null, sess: null, tick: null };
 var app = document.getElementById('app');
 var footbar = document.getElementById('footbar');
 var footbarIn = document.getElementById('footbarIn');
@@ -109,6 +109,9 @@ function boot() {
       fetch('data/explain.json').then(function (r) { return r.json(); })
         .then(function (x) { G.explain = x; })
         .catch(function () { G.explain = null; });
+      fetch('data/errata.json').then(function (r) { return r.json(); })
+        .then(function (x) { G.errata = x; })
+        .catch(function () { G.errata = null; });
       fetch('data/notes.json').then(function (r) { return r.json(); })
         .then(function (x) {
           G.notes = x; G.notesLoaded = true;
@@ -176,6 +179,7 @@ function route() {
     case 'exam':    r.path[1] === 'run' ? pageExamRun() : pageExamSetup(); break;
     case 'wrong':   pageWrong(); break;
     case 'notes':   r.path[1] ? pageNoteTopic(+r.path[1]) : pageNotes(); break;
+    case 'errata':  pageErrata(); break;
     case 'stats':   pageStats(); break;
     case 'info':    pageInfo(); break;
     default:        location.replace('#/');
@@ -227,6 +231,11 @@ function pageHome() {
       tile('#/wrong', '🔁', '錯題複習', wn > 0 ? '目前有 ' + wn + ' 題待加強' : '答錯的題目會自動收進來') +
       tile('#/notes', '💡', '重點速記', '各主題核心考點＋指定影片清單') +
     '</div>' +
+    (G.errata && G.errata.items ?
+      '<a class="tile" href="#/errata" style="border-color:var(--acc)">' +
+      '<span class="ic">⚠️</span><span class="t">題庫疑義（' +
+      Object.keys(G.errata.items).length + ' 題）</span>' +
+      '<span class="d">題庫本身答案有問題的題目。比賽照題庫計分，但別把錯觀念背進去</span></a>' : '') +
 
     '<div class="card"><h3 style="margin-top:0">我的練習進度</h3>' +
       '<div class="stat-grid">' +
@@ -458,7 +467,7 @@ function verdictHtml(id, q, picked, right) {
     '<div class="vh">' + (ok ? '✅ 答對了！' : '❌ 答錯了，正確答案是 ' + KEYS[right]) + '</div>' +
     '<div class="ana">' + (ana ? esc(ana) : '<span style="color:var(--tx3)">（解析載入中…）</span>') + '</div>' +
     (q[5] ? '<div class="note" style="margin-top:8px">🔑 考點：<b>' + esc(q[5]) + '</b></div>' : '') +
-    '</div>';
+    '</div>' + errataHtml(id);
 }
 
 function sessScore() {
@@ -906,6 +915,81 @@ function pageNoteTopic(t) {
     topicFilter.lv = [];
     startSession('practice', shuffle(filterIds(t)), tp.n);
   };
+}
+
+
+/* ---------- 題庫疑義 ---------- */
+var ECAT = {
+  answer:    { n: '答案有問題', d: '題庫的答案和它自己的解析對不起來，或客觀上就是錯的' },
+  dispute:   { n: '答案有爭議', d: '題庫的答案與通行說法不同，但無法完全排除題庫另有依據' },
+  ambiguous: { n: '正解不唯一', d: '除了標準答案，還有別的選項也成立，選到那個會被判錯' },
+  ana:       { n: '解析寫錯',   d: '答案是對的，但解析寫反或誤植，照解析讀會學到錯的' },
+  defect:    { n: '題目瑕疵',   d: '選項重複、引用不存在的項目，不影響答案' }
+};
+var ECAT_ORDER = ['answer', 'dispute', 'ambiguous', 'ana', 'defect'];
+
+function getErrata(id) {
+  if (!G.errata || !G.errata.items) return null;
+  return G.errata.items[String(id)] || null;
+}
+
+function errataHtml(id) {
+  var e = getErrata(id);
+  if (!e) return '';
+  return '<div class="errata">' +
+    '<div class="eh">⚠️ 這題題庫本身有問題（' + esc(ECAT[e.cat] ? ECAT[e.cat].n : e.cat) + '）</div>' +
+    '<p>' + esc(e.why) + '</p>' +
+    '<p class="ehow"><b>怎麼答：</b>' + esc(e.how) + '</p>' +
+    (e.truth ? '<p class="etruth"><b>正確觀念：</b>' + esc(e.truth) + '</p>' : '') +
+    '</div>';
+}
+
+function pageErrata() {
+  var d = G.data;
+  if (!G.errata || !G.errata.items) {
+    app.innerHTML = '<h1>題庫疑義</h1><div class="loading"><div class="spin"></div>載入中…</div>';
+    return;
+  }
+  var m = G.errata.meta || {};
+  var ids = Object.keys(G.errata.items).map(Number).sort(function (a, b) { return a - b; });
+  var byCat = {};
+  ids.forEach(function (id) {
+    var e = G.errata.items[String(id)];
+    (byCat[e.cat] = byCat[e.cat] || []).push(id);
+  });
+
+  app.innerHTML = '<h1>題庫疑義</h1>' +
+    '<p class="lead">逐題比對官方題庫的「答案」與「解析」後，找出 <b>' + ids.length +
+    '</b> 題有問題的題目。</p>' +
+    '<div class="card" style="border-color:var(--acc);background:var(--acc2)">' +
+      '<b>先講最重要的：比賽是照官方答案計分。</b><br>' +
+      '遇到這些題目<b>還是要照題庫作答</b>，這份清單是要讓你知道「為什麼怪」，' +
+      '不要把錯的觀念背進去。練習時遇到這些題，答完會自動跳出提醒。' +
+    '</div>' +
+    (m.scanned ? '<p class="note">查核範圍：全題庫 ' + m.total + ' 題中已掃描 ' + m.scanned +
+      ' 題' + (m.scanned < m.total ? '（其餘持續查核中）' : '') + '。</p>' : '') +
+    ECAT_ORDER.filter(function (c) { return byCat[c]; }).map(function (c) {
+      return '<h2>' + esc(ECAT[c].n) + '（' + byCat[c].length + ' 題）</h2>' +
+        '<p class="note" style="margin-top:-6px">' + esc(ECAT[c].d) + '</p>' +
+        byCat[c].map(function (id) {
+          var q = d.q[id], e = G.errata.items[String(id)];
+          return '<details class="acc"><summary>' +
+            '<span class="tag gray">題 ' + (id + 1) + '</span> ' + esc(q[2].slice(0, 34)) +
+            (q[2].length > 34 ? '…' : '') + '</summary><div class="body">' +
+            '<p style="color:var(--tx);font-weight:600;margin:0 0 8px">' + esc(q[2]) + '</p>' +
+            '<ul style="list-style:none;padding:0;margin:0 0 10px">' +
+            q[3].map(function (o, k) {
+              return '<li style="padding:3px 0' + (k === q[4] ? ';color:var(--ok);font-weight:650' : '') +
+                '">(' + (k + 1) + ') ' + esc(o) + (k === q[4] ? '　← 官方答案' : '') + '</li>';
+            }).join('') + '</ul>' +
+            '<p><b>問題：</b>' + esc(e.why) + '</p>' +
+            '<p><b>怎麼答：</b>' + esc(e.how) + '</p>' +
+            (e.truth ? '<p><b>正確觀念：</b>' + esc(e.truth) + '</p>' : '') +
+            '</div></details>';
+        }).join('');
+    }).join('') +
+    '<div class="btn-row"><a class="btn pri" href="#/">回首頁</a></div>' +
+    '<p class="note">發現其他怪怪的題目，跟衛生組說一聲，查證後會補進這份清單。</p>';
 }
 
 /* ===========================================================

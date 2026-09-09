@@ -251,3 +251,10 @@ table.tbl th{color:var(--tx2);font-weight:650;font-size:13.5px;white-space:nowra
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- 題庫疑義提示 ---------- */
+.errata{margin-top:12px;border:1px solid var(--acc);background:var(--acc2);border-radius:12px;padding:13px 15px}
+.errata .eh{font-weight:800;font-size:15.5px;color:var(--acc);margin-bottom:6px}
+.errata p{margin:0 0 6px;font-size:14.5px;line-height:1.75;color:var(--tx)}
+.errata p:last-child{margin-bottom:0}
+.errata .ehow{padding-top:6px;border-top:1px dashed color-mix(in srgb,var(--acc) 45%,transparent)}
