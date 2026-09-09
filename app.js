@@ -14,7 +14,7 @@ var LS = 'ekc.v1';
 var KEYS = ['A', 'B', 'C', 'D'];
 
 /* ---------- 全域狀態 ---------- */
-var G = { data: null, explain: null, notes: null, sess: null, tick: null };
+var G = { data: null, explain: null, notes: null, notesLoaded: false, sess: null, tick: null };
 var app = document.getElementById('app');
 var footbar = document.getElementById('footbar');
 var footbarIn = document.getElementById('footbarIn');
@@ -110,8 +110,15 @@ function boot() {
         .then(function (x) { G.explain = x; })
         .catch(function () { G.explain = null; });
       fetch('data/notes.json').then(function (r) { return r.json(); })
-        .then(function (x) { G.notes = x; })
-        .catch(function () { G.notes = null; });
+        .then(function (x) {
+          G.notes = x; G.notesLoaded = true;
+          // 直接開重點速記頁時，資料是後到的，到了要重畫一次
+          if (/^#\/notes/.test(location.hash) && !G.sess) route();
+        })
+        .catch(function () {
+          G.notes = null; G.notesLoaded = true;
+          if (/^#\/notes/.test(location.hash) && !G.sess) route();
+        });
     })
     .catch(function (e) {
       app.innerHTML = '<div class="empty"><span class="ic">😵</span>' +
@@ -872,6 +879,8 @@ function pageNoteTopic(t) {
         note.numbers.map(function (x) {
           return '<tr><td>' + esc(x.k) + '</td><td><b>' + esc(x.v) + '</b></td></tr>';
         }).join('') + '</table></div></div>' : '');
+  } else if (!G.notesLoaded) {
+    body = '<div class="loading"><div class="spin"></div>重點速記載入中…</div>';
   } else {
     // 沒有整理稿時，退回用題庫的「考點」欄自動彙整
     var cnt = {};
