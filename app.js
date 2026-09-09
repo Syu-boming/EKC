@@ -823,7 +823,8 @@ function pageNotes() {
         '<div class="body">' +
         (v.why ? '<p style="margin:0 0 10px">' + esc(v.why) + '</p>' : '') +
         (v.points && v.points.length ?
-          '<b>看的時候特別記這幾點：</b><ul>' +
+          '<b>看的時候特別記這幾點</b>（這是觀看方向的提示，不是影片的內容摘要，' +
+          '影片一定要自己看）：<ul>' +
           v.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' :
           '<p style="margin:0">請直接到環境教育終身學習網觀看。</p>') +
         '</div></details>';
@@ -848,6 +849,10 @@ function pageNoteTopic(t) {
   if (note) {
     body = (note.intro ? '<div class="card"><p style="margin:0;font-size:15.5px;line-height:1.85">' +
         esc(note.intro) + '</p></div>' : '') +
+      '<p class="note">以下重點是依<b>官方題庫的題目與解析</b>整理出來的，' +
+      '所以裡面的數據跟著題庫走。題庫有些內容是幾年前寫的（例如發電結構占比、' +
+      '寫成「環保署」而非現在的「環境部」），比賽是照題庫出題，' +
+      '但要知道實際現況可能已經不一樣了。</p>' +
       '<h2>必背重點</h2>' +
       note.items.map(function (k) {
         return '<div class="kcard"><b>' + esc(k.h) + '</b><p>' + esc(k.b) + '</p></div>';
