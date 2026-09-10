@@ -110,7 +110,11 @@ function boot() {
         .then(function (x) { G.explain = x; })
         .catch(function () { G.explain = null; });
       fetch('data/errata.json').then(function (r) { return r.json(); })
-        .then(function (x) { G.errata = x; })
+        .then(function (x) {
+          G.errata = x;
+          // 首頁的疑義入口與 #/errata 頁都要等這份資料，到了就重畫
+          if (!G.sess && /^(#\/?|#\/errata)$/.test(location.hash || '#/')) route();
+        })
         .catch(function () { G.errata = null; });
       fetch('data/notes.json').then(function (r) { return r.json(); })
         .then(function (x) {
